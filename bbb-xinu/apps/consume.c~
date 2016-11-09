@@ -1,0 +1,19 @@
+#include "prodcons.h"
+
+
+
+void consumer(int count){
+  /*
+  *  'count' tells the BUFFER size of the shared memory space
+  */
+  
+  while(n<=count){
+    wait(produced);
+    printf("\n Consumer consumed %d..",n);
+    signal(consumed);
+  }
+  printf("\n");
+  semdelete(produced);
+  semdelete(consumed);
+
+}

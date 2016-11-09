@@ -1,0 +1,79 @@
+#include <xinu.h>
+#include "slot_queue.h"
+
+struct slotentry slottab[NSLOT+2];	/* Table of process queues	*/
+
+/*------------------------------------------------------------------------
+ *  enqueue  -  Insert a process at the tail of a queue
+ *------------------------------------------------------------------------
+ */
+int32	enqueueslot(
+	  int32	slot,		/* ID of process to insert	*/
+	  qid16	q,		/* ID of queue to use		*/
+	  int32 ts	
+	)
+{
+	int16	next, prev;		/* Tail & previous node indexes	*/
+
+	if (isbadslotqid(q)) {
+		return SYSERR;
+	}
+
+	prev = slotqueuehead(q);
+	next = slottab[slotqueuehead(q)].qnext;
+	while ((next != slotqueuetail(q)) && (slottab[next].timestamp <= ts)) {
+		ts -= slottab[next].timestamp;
+		prev = next;
+		next = slottab[next].qnext;
+	}
+
+	/* Insert new node between prev and next nodes */
+
+	slottab[slot].qnext = next;
+	slottab[slot].qprev = prev;
+	slottab[slot].timestamp = ts;
+	slottab[prev].qnext = slot;
+	slottab[next].qprev = slot;
+	if (next != slotqueuetail(q)) {
+		slottab[next].timestamp -= ts;
+	}
+
+	return slot;
+}
+
+
+
+/*------------------------------------------------------------------------
+ *  dequeue  -  Remove and return the first process on a list
+ *------------------------------------------------------------------------
+ */
+int32	dequeueslot(
+	  qid16		q		/* ID queue to use		*/
+	)
+{
+        int p;			/* ID of process removed	*/
+
+	if (isbadslotqid(q)) {
+		return SYSERR;
+	} else if (isemptyslotQ(q)) {
+		return EMPTY;
+	}
+	
+	p = slottab[slotqueuehead(q)].qnext;
+	slottab[slotqueuehead(q)].qnext = slottab[p].qnext;
+        slottab[slottab[p].qnext].qprev = slotqueuehead(q);
+	return p;
+}
+
+
+int32 initSlotQ()
+{
+  int16 qid = 16;
+  slottab[slotqueuehead(16)].qprev = EMPTY;
+  slottab[slotqueuetail(16)].qnext = EMPTY;
+  slottab[slotqueuehead(16)].qnext = slotqueuetail(16);
+  slottab[slotqueuehead(16)].qprev = slotqueuehead(16);
+  slottab[slotqueuehead(16)].timestamp = MAXKEY;
+  slottab[slotqueuetail(16)].timestamp = MINKEY;
+  return qid;
+}

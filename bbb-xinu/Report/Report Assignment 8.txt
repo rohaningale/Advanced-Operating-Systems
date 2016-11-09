@@ -1,0 +1,66 @@
+					       Assignment 8- Report
+					================================
+
+Include a description of the implementation, lessons learned and team contributions.
+
+Implemented File System functions:
+fs_create: To create a file
+fs_open: To open the file
+fs_write: To write to a file
+fs_seek: To move the file  pointer to a specified location
+fs_read: To read the contents of a file
+fs_close: To close an open file 
+
+Functions:
+==========
+1. int fs_open(char *filename, int flags) - 
+	Check the mode to openfile.
+	Check if file is not already open.
+	Check whether an oft entry is present.
+	Make an entry in open file table.
+
+2. int fs_close(int fd);
+	Change the file status as closed and remove entry from Open File Table.
+
+3. int fs_create(char *filename, int mode) - 
+	Check whether the function is called with O_CREAT mode.
+	Check the file name.
+	Check if file with same name is present
+	Create an inode for the new file.
+	Create a new file directory entry in the root_dir structure.
+
+5. int fs_seek(int fd, int position, int offset);
+	Check if file descriptor is valid
+	Check whether file is open or not.
+	Check whether the offset is valid
+	Set the initial file pointer to the position as (BEGIN, EOF, CURR)
+	If the offset ahead of current filepointer is greater than the size of file or less than start of file then the set the filepointer to the appropriate end of file.
+
+6.int fs_read(int fd, void *buf, int nbytes) - 
+	Check whether file is opened in Read mode.
+	Check if the number of bytes to read are valid.
+	Call readblock function to read the given number of bytes into the block cache.
+	Display the file contents.
+
+7. int fs_write(int fd, void *buf, int nbytes) -
+	Check if file is open in write mode.
+	Check whether file needs to be overwritten
+	Copy the content to be written into block cache.
+	Call writeblock to write the contents into memory block by block.
+	
+8. int readBlock(int dev, int block, int offset, void *buf, int len) -
+	Calls bs_bread() to read the contents from memory into block cache.	
+
+9. int writeBlock(int dev, int block, int offset, void *buf, int len) - 
+	Calls bs_bwrite() to write the contents of block cache into memory.
+
+==================
+1) fs.c (completed by Anand and Rohan)
+	- Implemented the above listed file system funtions.
+
+2) xsh_fstest.c (completed by Rohan and Anand)
+	- Shell command running on Xinu, which invokes the file system APIs to operate on file. This command accepts the file name.
+=====================
+Lessons learnt:
+1. File system internals.
+2. Learnt about various structures involved in file system implementations such as: inode, directory entry, super block, bit mask. 

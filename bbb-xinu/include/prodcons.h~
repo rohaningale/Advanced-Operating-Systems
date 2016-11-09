@@ -1,0 +1,15 @@
+
+//#include <stddef.h>
+//#include <kernel.h>
+#include "future.h"
+
+extern sid32 produced, consumed;
+
+extern int n;
+//extern int consumers[];
+
+void producer(int count);
+void consumer(int count);
+int32 future_cons(future *, pid32);
+int32 future_prod(future *);
+int32 cliver_produce(uint32, uint16t, uint16, pid32);

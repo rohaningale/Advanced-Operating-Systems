@@ -1,0 +1,220 @@
+#include <xinu.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include "prodcons.h"
+//#include "future.h"
+#include "fut_queue.h"
+#define TRUE 1
+
+int n = 0;
+
+futQEnt futQ[4][NBOUND];
+
+sid32 consumed, produced;
+sid32 mutex;
+int totalConsumers=0;
+
+int checkInt(char *argv){
+  int val = TRUE, negVal = !TRUE;
+  int len = strlen(argv);
+  int i=0;
+  if(*(argv) == '-'){
+	/* a possible negative number is passed. */
+	negVal = TRUE;
+	i++;
+  }
+
+  while(i<len){   
+    if( !((*(argv+i)-48) >= 0 && *(argv+i)-48 <=9)){
+	val = !TRUE; break;
+    }
+    i++;
+  }
+  if(val && negVal){
+    /* input is a number */
+    /* and input is negative */
+    return -1;
+  }
+  return val;
+}
+
+void showHelp(){
+  printf("\n Usage: prodcons [[count] | -f]");
+  printf("\n Description:\n");
+  printf("\t Runs the prodcons command with the max count specified as the optional parameter\n");
+  printf("Options (one per invocation):\n");
+  printf("\n\t[count]\t specifies the positive integer count for producer.");
+  printf("\n\t-f\texecute using futures\n");
+  printf("\n\t--help\tdisplay this help and exit\n");
+}
+
+
+shellcmd xsh_prodcons(int nargs, char *args[])
+{
+
+  int count = 2000; n=0;
+  int retVal=0, flag = !TRUE;
+  pid32 pid[20]={0};
+  future *f1;
+  future *f_shared;
+  future *f_queue;
+      //Argument verifications and validations
+  if(nargs>2){
+	fprintf(stderr,"\n Invalid usage. Too many arguments");
+	showHelp();
+	return -1;
+	//exit(1);
+
+  }else if (nargs == 2 && strncmp(args[1], "--help", 7) == 0) {
+	showHelp();
+	return 1;
+  }else if(nargs ==2 && strncmp(args[1], "-f", 7) == 0)
+  {
+	flag = TRUE;
+  }
+
+  if(!flag){
+     if(nargs>1){
+	  retVal = checkInt(args[1]);
+  	  if(retVal == 0){
+		fprintf(stderr,"\n Argument passed is not a valid argument");
+		showHelp();
+	  	return -1;
+	  }
+	  if(retVal == -1){
+		fprintf(stderr,"\n Negative argument value.");
+		showHelp();
+	  	return -1;
+	  }
+
+	  count = atoi(args[1]);
+      }
+
+
+     if(count > 0){
+	// Initialize the semaphores
+	consumed = semcreate(1);
+	produced = semcreate(0);
+	//printf("\n n= %d \t count= %d",n,count);
+	//check args[1] if present assign value to count
+
+	//create the process producer and consumer and put them in ready queue.
+	//Look at the definations of function create and resume in exinu/system folder for reference.      
+	resume( create(producer, 1024, 20, "producer", 1, count) );
+	resume( create(consumer, 1024, 20, "consumer", 1, count) );
+     }else{
+	fprintf(stderr,"\n Zero Value count.");
+	showHelp();
+	return -1;
+     }
+
+  }else{
+	/*
+	 *  prodcons using futures
+	 */
+     mutex = semcreate(1);
+	 
+     f1 = future_alloc(FUTURE_EXCLUSIVE);
+     f_queue = future_alloc(FUTURE_QUEUE);
+     f_shared = future_alloc(FUTURE_SHARED);
+
+     if(f1!=NULL)
+     {
+	pid[0] = create(future_cons, 1024, 20, "fcons3", 2, f1, getpid());
+	//future_freeable(f1, 1);
+
+	wait(mutex);
+	totalConsumers++;
+	signal(mutex);
+
+
+	pid[1] = create(future_prod, 1024, 20, "fprod3", 1, f1);
+	resume( pid[0] );
+     	resume( pid[1] );
+     }
+
+	
+	if(f_shared != NULL){
+
+		pid[3] = create(future_cons, 1024, 20, "s_fcons1", 2, f_shared, getpid());
+		//future_freeable(f_shared, 1);
+
+		wait(mutex);
+		totalConsumers++;
+		signal(mutex);
+
+		pid[4] = create(future_cons, 1024, 20, "s_fcons2", 2, f_shared, getpid());
+		//future_freeable(f_shared, 2);
+
+		wait(mutex);
+		totalConsumers++;
+		signal(mutex);
+
+		pid[5] = create(future_prod, 1024, 20, "s_fprod1", 1, f_shared);
+		pid[6] = create(future_prod, 1024, 20, "s_fprod2", 1, f_shared);
+		pid[7] = create(future_cons, 1024, 20, "s_fcons3", 2, f_shared, getpid());
+		//future_freeable(f_shared, 3);
+	
+		wait(mutex);
+		totalConsumers++;
+		signal(mutex);
+	
+
+		resume( pid[3] );
+		resume( pid[4] );
+		resume( pid[5] );
+	  	
+		resume( pid[6] );
+		resume( pid[7] );
+	}
+	
+		//printf("\n\nTotal cons = %d",totalConsumers);
+	if(f_queue != NULL){
+     		pid[3] = create(future_cons, 1024, 20, "q_fcons1", 2, f_queue, getpid());
+		//future_freeable(f_queue, 1);
+
+		wait(mutex);
+		totalConsumers++;
+		signal(mutex);
+
+		pid[4] = create(future_cons, 1024, 20, "q_fcons2", 2, f_queue, getpid());
+		//future_freeable(f_queue, 2);
+
+		wait(mutex);
+		totalConsumers++;
+		signal(mutex);
+
+		pid[5] = create(future_prod, 1024, 20, "q_fprod1", 1, f_queue);
+		pid[6] = create(future_prod, 1024, 20, "q_fprod2", 1, f_queue);
+		pid[7] = create(future_prod, 1024, 20, "q_fprod3", 1, f_queue);
+		pid[8] = create(future_cons, 1024, 20, "q_fcons3", 2, f_queue, getpid());
+		//future_freeable(f_queue, 3);
+	
+		wait(mutex);
+		totalConsumers++;
+		signal(mutex);
+		
+
+		resume( pid[3] );
+		resume( pid[4] );
+		resume( pid[5] );
+		resume( pid[6] );
+		resume( pid[7] );
+		resume( pid[8] );
+		
+	}
+
+	while(totalConsumers != 0){
+		printf("");
+	}
+	future_free(f1);
+	f1 = NULL;
+	future_free(f_shared);
+	f_shared = NULL;
+	future_free(f_queue);
+	f_queue = NULL;
+
+	//printf("\n\nTotal cons = %d",totalConsumers);
+  }
+  return 0;
+}

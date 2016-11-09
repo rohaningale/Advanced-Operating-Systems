@@ -1,0 +1,21 @@
+#include "future.h"
+
+
+int32 future_cons(future *f, pid32 pid) {
+  int i, status;
+
+  
+
+  status = future_get(f, &i);
+  if (status != OK) {
+    printf("future_get failed\n");
+    return -1;
+  }
+
+  //printf("\nConsumers on fut: %d", f->consumers);
+
+
+
+
+  return OK;
+}
